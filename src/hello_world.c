@@ -8,10 +8,13 @@ TextLayer *taipei_text_layer;
 TextLayer *recife_label_text_layer;
 TextLayer *taipei_label_text_layer;
 
+TextLayer *battery_label_text_layer;
+
 // using different strings so that the compiler wont optimize them to a single value!
 char*     local_buffer  = "00:00";
 char*     recife_buffer = "00:01";
 char*     taipei_buffer = "00:02";
+char*     battery_buffer = "100%";
 
 void update_buffer(char* buffer, struct tm *tick_time) {
   // Write the current hours and minutes into the buffer
@@ -41,19 +44,29 @@ void update_time() {
   text_layer_set_text(taipei_text_layer, taipei_buffer);  
 }
 
+void update_battery() {
+  BatteryChargeState charge_state = battery_state_service_peek();
+  snprintf(battery_buffer, sizeof(battery_buffer), "%d%%", charge_state.charge_percent);
+  text_layer_set_text(battery_label_text_layer, battery_buffer);  
+}
+
 static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
   update_time();
+  update_battery();
 }
 
 void handle_init(void) {
 	// Create a window and text layer
 	window = window_create();
+  // display size: 144×168
 	local_text_layer = text_layer_create(GRect(0, 0, 144, 50));
 	recife_text_layer = text_layer_create(GRect(0, 70, 144, 100));
 	taipei_text_layer = text_layer_create(GRect(0, 100, 144, 130));
 
   recife_label_text_layer = text_layer_create(GRect(0, 70, 72, 100));
 	taipei_label_text_layer = text_layer_create(GRect(0, 100, 72, 130));
+  
+	battery_label_text_layer = text_layer_create(GRect(0, 150, 144, 168));
     
 	// Set the text, font, and text alignment
 	text_layer_set_font(local_text_layer, fonts_get_system_font(FONT_KEY_ROBOTO_BOLD_SUBSET_49));
@@ -69,8 +82,11 @@ void handle_init(void) {
 	text_layer_set_text_alignment(recife_label_text_layer, GTextAlignmentLeft);
 
   text_layer_set_font(taipei_label_text_layer, fonts_get_system_font(FONT_KEY_ROBOTO_CONDENSED_21));
-	text_layer_set_text_alignment(taipei_label_text_layer, GTextAlignmentLeft);
-	  
+  text_layer_set_text_alignment(taipei_label_text_layer, GTextAlignmentLeft);
+	
+  text_layer_set_font(battery_label_text_layer, fonts_get_system_font(FONT_KEY_GOTHIC_14));
+	text_layer_set_text_alignment(battery_label_text_layer, GTextAlignmentRight);
+
 	// Add the text layer to the window
 	layer_add_child(window_get_root_layer(window), text_layer_get_layer(local_text_layer));
 	layer_add_child(window_get_root_layer(window), text_layer_get_layer(recife_text_layer));
@@ -78,6 +94,8 @@ void handle_init(void) {
 
 	layer_add_child(window_get_root_layer(window), text_layer_get_layer(recife_label_text_layer));
 	layer_add_child(window_get_root_layer(window), text_layer_get_layer(taipei_label_text_layer));
+
+ 	layer_add_child(window_get_root_layer(window), text_layer_get_layer(battery_label_text_layer));
   
   text_layer_set_text(recife_label_text_layer, "Recife: ");  
   text_layer_set_text(taipei_label_text_layer, "Taipei: ");  
@@ -87,8 +105,10 @@ void handle_init(void) {
 	
   // Register with TickTimerService
   tick_timer_service_subscribe(MINUTE_UNIT, tick_handler);
-  
+
+  // initialize window
   update_time();
+  update_battery();
   
 	// App Logging!
 	APP_LOG(APP_LOG_LEVEL_DEBUG, "Just pushed a window!");
